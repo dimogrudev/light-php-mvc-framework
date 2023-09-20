@@ -15,7 +15,7 @@
 			<?= $content ?>
 		</div>
 
-		<script src="/js/jquery-3.5.1.slim.min.js"></script>
+		<script src="/js/jquery-3.5.1.min.js"></script>
 		<script src="/js/popper-1.16.1.min.js"></script>
 		<script src="/js/bootstrap-4.6.2.min.js"></script>
 		<script src="/js/custom.js"></script>
