@@ -4,7 +4,7 @@ namespace Core\Modules;
 
 class Database
 {
-	private static self $instance;
+	private static ?self $instance = null;
 	private \PDO $pdo;
 
 	public int $rowCount = 0;
