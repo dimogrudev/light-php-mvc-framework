@@ -9,6 +9,8 @@ class SiteController extends \Core\Controller
 	public function actionIndex(): string
 	{
 		$this->layout = 'Site';
+		$this->autoVersioning = true;
+		
 		return $this->render('Site/Index', [
 			'title' => 'Index'
 		]);

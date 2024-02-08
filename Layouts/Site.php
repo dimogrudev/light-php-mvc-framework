@@ -7,17 +7,17 @@
 
 		<title><?= $title ? $title . ' — ' : '' ?>Light PHP MVC Framework</title>
 		
-		<link rel="stylesheet" href="/css/bootstrap-4.6.2.min.css">
-		<link rel="stylesheet" href="/css/custom.css">
+		<?php foreach ($autoVersioning['css'] as $css) : ?>
+			<link rel="stylesheet" href="/css/<?= $css; ?>">
+		<?php endforeach; ?>
 	</head>
 	<body>
 		<div class="container">
 			<?= $content ?>
 		</div>
-
-		<script src="/js/jquery-3.5.1.min.js"></script>
-		<script src="/js/popper-1.16.1.min.js"></script>
-		<script src="/js/bootstrap-4.6.2.min.js"></script>
-		<script src="/js/custom.js"></script>
+		
+		<?php foreach ($autoVersioning['js'] as $js) : ?>
+			<script src="/js/<?= $js; ?>"></script>
+		<?php endforeach; ?>
 	</body>
 </html>

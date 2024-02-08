@@ -5,7 +5,9 @@ namespace Core;
 abstract class Controller
 {
 	protected string $controllerName;
+
 	protected ?string $layout	= null;
+	protected bool $autoVersioning = false;
 
 	public $defaultAction		= 'Index';
 
@@ -21,6 +23,24 @@ abstract class Controller
 	protected function render(string $viewName, array $data = []): string
 	{
 		extract($data);
+
+		if ($this->autoVersioning) {
+			foreach (\Core\Application::$config['autoVersioning'] as $extension => $staticFiles) {
+				$autoVersioning[$extension] = [];
+
+				foreach ($staticFiles as $file) {
+					$filePath = __DIR__ . '/../Public/' . $extension . '/' . $file;
+
+					if (file_exists($filePath)) {
+						$mtime = filemtime($filePath);
+						
+						$extPos = strpos($file, $extension);
+						$autoVersioning[$extension][] = substr($file, 0, $extPos) . $mtime . '.' . $extension;
+					}
+				}
+			}
+		}
+
 		$viewPath = __DIR__ . '/../Framework/Views/' . $viewName . '.php';
 
 		ob_start();
