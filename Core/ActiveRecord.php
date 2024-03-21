@@ -7,10 +7,10 @@ use Core\Modules\Query;
 
 abstract class ActiveRecord
 {
-	/** @var int */
+	/** @var null|int */
 	protected $id;
 
-	public function getId(): int
+	public function getId(): ?int
 	{
 		return $this->id;
 	}
