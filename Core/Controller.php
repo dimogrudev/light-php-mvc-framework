@@ -22,8 +22,16 @@ abstract class Controller
 
 	protected function render(string $viewName, array $data = []): string
 	{
+		extract($data);
+
+		$viewPath = __DIR__ . '/../Framework/Views/' . $viewName . '.php';
+
+		if (!file_exists($viewPath)) {
+			\Core\Application::error(500);
+		}
+		
 		ob_start();
-		require __DIR__ . '/../Framework/Views/' . $viewName . '.php';
+		require $viewPath;
 		$content = ob_get_clean();
 
 		return $this->renderContent($content, $data);
