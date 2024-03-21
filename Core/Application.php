@@ -94,10 +94,14 @@ class Application
 								continue;
 							}
 
-							if (!settype($this->params[$idx], $methodParam->getType()->getName())) {
+							$paramType = $methodParam->getType();
+							assert($paramType instanceof \ReflectionNamedType);
+
+							if (!settype($this->params[$idx], $paramType->getName())) {
 								$paramsValid = false;
 								break;
 							}
+							
 							$args[] = $this->params[$idx];
 						}
 
