@@ -26,7 +26,8 @@ abstract class ActiveRecord
 		return Database::getInstance();
 	}
 
-	public static function findOne(?array $condition = null): ?self
+	/** @return null|static */
+	public static function findOne(?array $condition = null)
 	{
 		$result = Query::select('*')
 			->from(static::tableName())
