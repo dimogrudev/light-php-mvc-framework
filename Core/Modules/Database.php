@@ -30,7 +30,7 @@ class Database
 		return self::$instance;
 	}
 
-	public function query(string $sql, array $params = []): array
+	public function query(string $sql, array $params = [], string $className = 'stdClass'): array
 	{
 		$sth = $this->pdo->prepare($sql);
 		$result = $sth->execute($params);
@@ -41,7 +41,7 @@ class Database
 		}
 
 		$this->rowCount = $sth->rowCount();
-		return $sth->fetchAll(\PDO::FETCH_ASSOC);
+		return $sth->fetchAll(\PDO::FETCH_CLASS, $className);
 	}
 
 	public function getLastInsertId(): int
