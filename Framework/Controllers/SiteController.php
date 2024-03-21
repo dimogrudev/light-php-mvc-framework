@@ -2,6 +2,8 @@
 
 namespace Framework\Controllers;
 
+use Framework\Models\Customer;
+
 class SiteController extends \Core\Controller
 {
 	public $defaultAction	= 'Index';
@@ -10,9 +12,10 @@ class SiteController extends \Core\Controller
 	{
 		$this->layout = 'Site';
 		$this->autoVersioning = true;
-		
+
 		return $this->render('Site/Index', [
-			'title' => 'Index'
+			'title'		=> 'Index',
+			'customers'	=> Customer::findAll()
 		]);
 	}
 }
