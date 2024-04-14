@@ -20,7 +20,19 @@ abstract class Controller
 		);
 	}
 
+	/**
+	 * Renders a view and applies layout if available
+	 */
 	protected function render(string $viewName, array $data = []): string
+	{
+		$content = $this->renderPartial($viewName, $data);
+		return $this->renderContent($content, $data);
+	}
+
+	/**
+	 * Renders a view without applying layout
+	 */
+	protected function renderPartial(string $viewName, array $data = []): string
 	{
 		extract($data);
 
@@ -32,11 +44,12 @@ abstract class Controller
 		
 		ob_start();
 		require $viewPath;
-		$content = ob_get_clean();
-
-		return $this->renderContent($content, $data);
+		return ob_get_clean();
 	}
 
+	/**
+	 * Renders a static string by applying a layout
+	 */
 	protected function renderContent(string $content, array $data = []): string
 	{
 		extract($data);
