@@ -128,14 +128,19 @@ class Query
 				foreach ($condition as $column => $value) {
 					$sqlCond = '';
 
-					if (is_array($value)) {
-						$sqlCond = $column . ' IN (' . implode(', ', array_fill(0, count($value), '?')) . ')';
-						self::$params = array_merge(self::$params, $value);
-					} else if (is_null($value)) {
-						$sqlCond = $column . ' IS NULL';
+					if (is_int($column) && is_array($value) && count($value) == 3) {
+						$sqlCond = $value[1] . ' ' . $value[0] . ' ?';
+						self::$params[] = $value[2];
 					} else {
-						$sqlCond = $column . ' = ?';
-						self::$params[] = $value;
+						if (is_array($value)) {
+							$sqlCond = $column . ' IN (' . implode(', ', array_fill(0, count($value), '?')) . ')';
+							self::$params = array_merge(self::$params, $value);
+						} else if (is_null($value)) {
+							$sqlCond = $column . ' IS NULL';
+						} else {
+							$sqlCond = $column . ' = ?';
+							self::$params[] = $value;
+						}
 					}
 
 					$sqlConds[] = '(' . $sqlCond . ')';

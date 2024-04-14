@@ -27,22 +27,28 @@ abstract class ActiveRecord
 	}
 
 	/** @return null|static */
-	public static function findOne(?array $condition = null)
+	public static function findOne(array $where = [])
 	{
 		$result = Query::select('*')
 			->from(static::tableName())
-			->where($condition)
+			->where($where)
 			->limit(1)
 			->run(Database::getInstance(), static::class);
 		return ($result) ? $result[0] : null;
 	}
 
-	public static function findAll(?array $condition = null): array
+	public static function findAll(array $where = [], array $orderBy = []): array
 	{
 		return Query::select('*')
 			->from(static::tableName())
-			->where($condition)
+			->where($where)
+			->orderBy($orderBy[0] ?? 'id', $orderBy[1] ?? 'ASC')
 			->run(Database::getInstance(), static::class);
+	}
+
+	public static function findBySql(string $sql, array $params = []): array
+	{
+		return (Database::getInstance())->query($sql, $params, static::class);
 	}
 
 	public function delete(): void
