@@ -8,7 +8,7 @@ use Core\Modules\Query;
 abstract class ActiveRecord
 {
 	/** @var null|int */
-	protected $id;
+	private ?int $id = null;
 
 	public function getId(): ?int
 	{
@@ -27,11 +27,12 @@ abstract class ActiveRecord
 	}
 
 	/** @return null|static */
-	public static function findOne(array $where = [])
+	public static function findOne(array $where = [], array $orderBy = [])
 	{
 		$result = Query::select('*')
 			->from(static::tableName())
 			->where($where)
+			->orderBy($orderBy[0] ?? 'id', $orderBy[1] ?? 'ASC')
 			->limit(1)
 			->run(Database::getInstance(), static::class);
 		return ($result) ? $result[0] : null;
@@ -53,12 +54,16 @@ abstract class ActiveRecord
 
 	public function delete(): void
 	{
-		if (!is_null($this->id)) {
-			Query::delete()
-				->from(static::tableName())
-				->where(['id' => $this->id])
-				->run(Database::getInstance());
-			$this->id = null;
+		if ($this->id !== null) {
+			if ($this->beforeDelete()) {
+				Query::delete()
+					->from(static::tableName())
+					->where(['id' => $this->id])
+					->run(Database::getInstance());
+				$this->id = null;
+
+				$this->afterDelete();
+			}
 		}
 	}
 
@@ -72,10 +77,14 @@ abstract class ActiveRecord
 
 	public function save(): void
 	{
-		if (!is_null($this->id)) {
-			$this->update();
-		} else {
-			$this->insert();
+		if ($this->beforeSave()) {
+			if ($this->id !== null) {
+				$this->update();
+			} else {
+				$this->insert();
+			}
+
+			$this->afterSave();
 		}
 	}
 
@@ -107,7 +116,10 @@ abstract class ActiveRecord
 		foreach ((new \ReflectionObject($dbObject))->getProperties() as $property) {
 			$property->setAccessible(true);
 			$propertyName = $property->getName();
-			$this->$propertyName = $property->getValue($dbObject);
+
+			if (!in_array($propertyName, static::ignoreAttributes())) {
+				$this->$propertyName = $property->getValue($dbObject);
+			}
 		}
 	}
 
@@ -117,8 +129,11 @@ abstract class ActiveRecord
 
 		foreach ((new \ReflectionObject($this))->getProperties() as $property) {
 			$propertyName = $property->getName();
-			$propertyNameAsUnderscore = self::camelCaseToUnderscore($propertyName);
-			$mappedProperties[$propertyNameAsUnderscore] = $this->$propertyName;
+			
+			if (!in_array($propertyName, static::ignoreAttributes())) {
+				$propertyNameAsUnderscore = self::camelCaseToUnderscore($propertyName);
+				$mappedProperties[$propertyNameAsUnderscore] = $this->$propertyName;
+			}
 		}
 
 		return $mappedProperties;
@@ -135,4 +150,27 @@ abstract class ActiveRecord
 	}
 
 	abstract public static function tableName();
+
+	public static function ignoreAttributes()
+	{
+		return [];
+	}
+
+	protected function beforeSave(): bool
+	{
+		return true;
+	}
+
+	protected function beforeDelete(): bool
+	{
+		return true;
+	}
+
+	protected function afterSave(): void
+	{
+	}
+
+	protected function afterDelete(): void
+	{
+	}
 }
