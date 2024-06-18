@@ -106,7 +106,7 @@ class Application
 						}
 
 						if ($paramsValid) {
-							echo call_user_func_array($func, $args);
+							echo call_user_func_array($func, $args) ?? '';
 							return;
 						}
 					}
