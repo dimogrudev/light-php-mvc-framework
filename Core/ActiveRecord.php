@@ -129,10 +129,18 @@ abstract class ActiveRecord
 
 		foreach ((new \ReflectionObject($this))->getProperties() as $property) {
 			$propertyName = $property->getName();
-			
+
 			if (!in_array($propertyName, static::ignoreAttributes())) {
+				$propertyType = gettype($this->$propertyName);
+
+				if ($propertyType == 'boolean') {
+					$propertyValue = intval($this->$propertyName);
+				} else {
+					$propertyValue = $this->$propertyName;
+				}
+
 				$propertyNameAsUnderscore = self::camelCaseToUnderscore($propertyName);
-				$mappedProperties[$propertyNameAsUnderscore] = $this->$propertyName;
+				$mappedProperties[$propertyNameAsUnderscore] = $propertyValue;
 			}
 		}
 
