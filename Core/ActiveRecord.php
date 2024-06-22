@@ -38,6 +38,7 @@ abstract class ActiveRecord
 		return ($result) ? $result[0] : null;
 	}
 
+	/** @return static[] */
 	public static function findAll(array $where = [], array $orderBy = []): array
 	{
 		return Query::select('*')
@@ -47,6 +48,7 @@ abstract class ActiveRecord
 			->run(Database::getInstance(), static::class);
 	}
 
+	/** @return static[] */
 	public static function findBySql(string $sql, array $params = []): array
 	{
 		return (Database::getInstance())->query($sql, $params, static::class);
