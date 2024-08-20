@@ -7,6 +7,9 @@ class Database
 	private static ?self $instance = null;
 	private \PDO $pdo;
 
+	private int $queryCount = 0;
+	private float $executionTime = 0;
+
 	public int $rowCount = 0;
 
 	private function __construct()
@@ -32,8 +35,14 @@ class Database
 
 	public function query(string $sql, array $params = [], string $className = 'stdClass'): array
 	{
+		$this->queryCount++;
+
+		$microtime = microtime(true);
+
 		$sth = $this->pdo->prepare($sql);
 		$result = $sth->execute($params);
+
+		$this->executionTime += microtime(true) - $microtime;
 
 		if ($result === false) {
 			$this->rowCount = 0;
@@ -47,5 +56,15 @@ class Database
 	public function getLastInsertId(): int
 	{
 		return (int)$this->pdo->lastInsertId();
+	}
+
+	public function getQueryCount(): int
+	{
+		return $this->queryCount;
+	}
+
+	public function getExecutionTime(): float
+	{
+		return $this->executionTime;
 	}
 }

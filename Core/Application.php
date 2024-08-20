@@ -106,7 +106,11 @@ class Application
 						}
 
 						if ($paramsValid) {
-							echo call_user_func_array($func, $args) ?? '';
+							$result = call_user_func_array($func, $args) ?? '';
+
+							self::setServerTimingHeaders();
+							echo $result;
+							
 							return;
 						}
 					}
@@ -115,6 +119,18 @@ class Application
 		}
 
 		self::error(404);
+	}
+	
+	public static function setServerTimingHeaders(): void
+	{
+		$total = round((microtime(true) - $_SERVER['REQUEST_TIME_FLOAT']) * 1000, 1);
+
+		$db = round((\Core\Modules\Database::getInstance())->getExecutionTime() * 1000, 1);
+		$app = $total - $db;
+
+		header('Server-Timing: db;dur=' . $db, false);
+		header('Server-Timing: app;dur=' . $app, false);
+		header('Server-Timing: total;dur=' . $total, false);
 	}
 
 	public static function isLocalhost(array $whitelist = ['127.0.0.1', '::1']): bool
