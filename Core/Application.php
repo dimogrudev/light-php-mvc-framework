@@ -138,13 +138,22 @@ class Application
 		return in_array($_SERVER['REMOTE_ADDR'], $whitelist);
 	}
 
-	public static function redirect(string $location, int $responseCode = 303): void
+	/**
+	 * @param string $location URL to redirect a page to
+	 * @param int $code HTTP status code
+	 * @return never
+	 */
+	public static function redirect(string $location, int $code = 303)
 	{
-		header('Location: ' . $location, true, $responseCode);
+		header('Location: ' . $location, true, $code);
 		exit;
 	}
 
-	public static function error(int $code = 404): void
+	/**
+	 * @param int $code HTTP status code
+	 * @return never
+	 */
+	public static function error(int $code = 404)
 	{
 		http_response_code($code);
 		exit;
