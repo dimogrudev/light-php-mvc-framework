@@ -1,16 +1,15 @@
 <?php
 
-namespace Core;
+namespace Core\Extensions;
 
 use Core\Modules\Database;
-use Core\Modules\Query;
 
 abstract class ActiveRecord
 {
-	/** @var null|int */
-	private ?int $id = null;
+	/** @var int */
+	private int $id;
 
-	public function getId(): ?int
+	public function getId(): int
 	{
 		return $this->id;
 	}
@@ -26,61 +25,83 @@ abstract class ActiveRecord
 		return Database::getInstance();
 	}
 
-	/** @return null|static */
-	public static function findOne(array $where = [], array $orderBy = [])
+	/**
+	 * @param string|array<int|string, null|(int|string)[]|int|string> $where
+	 * @param string[] $orderBy
+	 * @return static|null
+	 */
+	public static function findOne($where = [], array $orderBy = [])
 	{
-		$result = Query::select('*')
+		$stmt = (Query::select('*'))
 			->from(static::tableName())
 			->where($where)
 			->orderBy($orderBy[0] ?? 'id', $orderBy[1] ?? 'ASC')
 			->limit(1)
-			->run(Database::getInstance(), static::class);
-		return ($result) ? $result[0] : null;
+			->run();
+
+		if ($stmt) {
+			$stmt->setFetchMode(\PDO::FETCH_CLASS, static::class);
+			return $stmt->fetch() ?: null;
+		}
+		return null;
 	}
 
-	/** @return static[] */
-	public static function findAll(array $where = [], array $orderBy = []): array
+	/**
+	 * @param string|array<int|string, null|(int|string)[]|int|string> $where
+	 * @param string[] $orderBy
+	 * @param int|null $limit
+	 * @return static[]
+	 */
+	public static function findAll($where = [], array $orderBy = [], ?int $limit = null): array
 	{
-		return Query::select('*')
+		$stmt = Query::select('*')
 			->from(static::tableName())
 			->where($where)
 			->orderBy($orderBy[0] ?? 'id', $orderBy[1] ?? 'ASC')
-			->run(Database::getInstance(), static::class);
+			->limit($limit)
+			->run();
+		return $stmt ? $stmt->fetchAll(\PDO::FETCH_CLASS, static::class) : [];
 	}
 
 	/** @return static[] */
 	public static function findBySql(string $sql, array $params = []): array
 	{
-		return (Database::getInstance())->query($sql, $params, static::class);
+		$stmt = Database::getInstance()
+			->query($sql, $params);
+		return $stmt ? $stmt->fetchAll(\PDO::FETCH_CLASS, static::class) : [];
 	}
 
 	public function delete(): void
 	{
-		if ($this->id !== null) {
+		if (isset($this->id)) {
 			if ($this->beforeDelete()) {
 				Query::delete()
 					->from(static::tableName())
 					->where(['id' => $this->id])
-					->run(Database::getInstance());
-				$this->id = null;
+					->run();
+				unset($this->id);
 
 				$this->afterDelete();
 			}
 		}
 	}
 
-	public static function deleteAll(?array $condition = null): void
+	/**
+	 * @param string|array<int|string, null|(int|string)[]|int|string> $condition
+	 * @return void
+	 */
+	public static function deleteAll($condition = []): void
 	{
 		Query::delete()
 			->from(static::tableName())
 			->where($condition)
-			->run(Database::getInstance());
+			->run();
 	}
 
 	public function save(): void
 	{
 		if ($this->beforeSave()) {
-			if ($this->id !== null) {
+			if (isset($this->id)) {
 				$this->update();
 			} else {
 				$this->insert();
@@ -95,19 +116,18 @@ abstract class ActiveRecord
 		Query::update(static::tableName())
 			->set($this->getMappedProperties())
 			->where(['id' => $this->id])
-			->run(Database::getInstance());
+			->run();
 	}
 
 	private function insert(): void
 	{
-		$dbInstance = Database::getInstance();
-
 		Query::insert()
 			->into(static::tableName())
 			->values($this->getMappedProperties())
-			->run($dbInstance);
+			->run();
 
-		$this->id = $dbInstance->getLastInsertId();
+		$this->id = Database::getInstance()
+			->getLastInsertId();
 		$this->refresh();
 	}
 
@@ -176,11 +196,7 @@ abstract class ActiveRecord
 		return true;
 	}
 
-	protected function afterSave(): void
-	{
-	}
+	protected function afterSave(): void {}
 
-	protected function afterDelete(): void
-	{
-	}
+	protected function afterDelete(): void {}
 }

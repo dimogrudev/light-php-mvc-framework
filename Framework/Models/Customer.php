@@ -2,7 +2,7 @@
 
 namespace Framework\Models;
 
-class Customer extends \Core\ActiveRecord
+class Customer extends \Core\Extensions\ActiveRecord
 {
     /** @var string */
     public $fullName;

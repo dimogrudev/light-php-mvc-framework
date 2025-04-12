@@ -2,55 +2,66 @@
 
 namespace Core\Modules;
 
-class Database
+final class Database
 {
-	private static ?self $instance = null;
+	use \Patterns\Singletone;
+
+	/** @var \PDO $pdo Database connection */
 	private \PDO $pdo;
 
-	private int $queryCount = 0;
-	private float $executionTime = 0;
-
-	public int $rowCount = 0;
+	/** @var int $queryCount Total number of queries made to database */
+	private int $queryCount			= 0;
+	/** @var float $executionTime Total query execution time */
+	private float $executionTime	= 0;
 
 	private function __construct()
 	{
-		try {
-			extract(\Core\Application::$config['pdo']);
+		$config = \Core\Application::$config['pdo'];
 
-			$this->pdo = new \PDO("mysql:host={$host};dbname={$dbName};charset=UTF8", $user, $pass);
+		try {
+			$this->pdo = new \PDO("mysql:host={$config['host']};dbname={$config['dbName']};charset=UTF8", $config['user'], $config['pass']);
 			$this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-		} catch (\Exception $e) {
+		} catch (\PDOException $e) {
+			error_log('Database connection error: ' . $e->getMessage());
 			\Core\Application::error(500);
 		}
 	}
 
-	public static function getInstance(): self
+	/**
+	 * @param string $query SQL statement
+	 * @param array $params Parameters
+	 * 
+	 * @return \PDOStatement|null
+	 * Returns a **PDOStatement** object or **NULL** in case of an error
+	 */
+	public function query(string $query, array $params = []): ?\PDOStatement
 	{
-		if (self::$instance === null) {
-			self::$instance = new self();
+		try {
+			$stmt = $this->pdo->prepare($query);
+		} catch (\PDOException $e) {
+			error_log('An error occured while preparing SQL statement: ' . $e->getMessage());
+			\Core\Application::error(500);
 		}
 
-		return self::$instance;
-	}
+		if ($stmt) {
+			$microtime = microtime(true);
 
-	public function query(string $sql, array $params = [], string $className = 'stdClass'): array
-	{
-		$this->queryCount++;
+			try {
+				$result = $stmt->execute($params);
+			} catch (\PDOException $e) {
+				error_log('An error occured while executing SQL statement: ' . $e->getMessage());
+				\Core\Application::error(500);
+			}
 
-		$microtime = microtime(true);
+			$this->queryCount++;
+			$this->executionTime += microtime(true) - $microtime;
 
-		$sth = $this->pdo->prepare($sql);
-		$result = $sth->execute($params);
-
-		$this->executionTime += microtime(true) - $microtime;
-
-		if ($result === false) {
-			$this->rowCount = 0;
-			return [];
+			if ($result) {
+				return $stmt;
+			}
 		}
 
-		$this->rowCount = $sth->rowCount();
-		return $sth->fetchAll(\PDO::FETCH_CLASS, $className);
+		return null;
 	}
 
 	public function getLastInsertId(): int

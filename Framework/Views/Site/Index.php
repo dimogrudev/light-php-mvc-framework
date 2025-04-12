@@ -1,3 +1,10 @@
+<?php
+
+/**
+ * @var Framework\Models\Customer[] $customers
+ */
+
+?>
 <div class="row">
 	<div class="col">
 		<h1>Lorem Ipsum</h1>
