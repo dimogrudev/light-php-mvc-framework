@@ -16,14 +16,14 @@ final class Query
 
 	/**
 	 * @param string $sql
-	 * @param (int|string)[] $params
 	 * @param array<string, bool> $allowedMethods
 	 * @return void
 	 */
-	private function __construct(string $sql, array $params, array $allowedMethods)
+	private function __construct(string $sql, array $allowedMethods)
 	{
 		$this->sql = $sql;
-		$this->params = $params;
+		$this->params = [];
+		
 		$this->setAllowedMethods($allowedMethods);
 	}
 
@@ -72,7 +72,6 @@ final class Query
 	{
 		return new self(
 			'INSERT' . ($ignore ? ' IGNORE' : ''),
-			[],
 			[
 				'into'		=> true,
 				'values'	=> true
@@ -117,7 +116,6 @@ final class Query
 	{
 		return new self(
 			'SELECT ' . (is_array($expression) ? implode(', ', $expression) : $expression),
-			[],
 			[
 				'from'		=> true,
 				'where'		=> false,
@@ -219,7 +217,6 @@ final class Query
 	{
 		return new self(
 			'DELETE',
-			[],
 			[
 				'from'		=> true,
 				'where'		=> false,
@@ -233,7 +230,6 @@ final class Query
 	{
 		return new self(
 			'UPDATE ' . $tableName,
-			[],
 			[
 				'set'		=> true,
 				'where'		=> false,
