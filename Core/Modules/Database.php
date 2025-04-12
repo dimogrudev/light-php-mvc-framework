@@ -16,7 +16,7 @@ final class Database
 
 	private function __construct()
 	{
-		$config = \Core\Application::$config['pdo'];
+		$config = \Core\Application::getConfigParam('pdo');
 
 		try {
 			$this->pdo = new \PDO("mysql:host={$config['host']};dbname={$config['dbName']};charset=UTF8", $config['user'], $config['pass']);

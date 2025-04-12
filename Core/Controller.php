@@ -57,7 +57,7 @@ abstract class Controller
 		if ($this->autoVersioning) {
 			$autoVersioning = [];
 
-			foreach (\Core\Application::$config['autoVersioning'] as $extension => $staticFiles) {
+			foreach (\Core\Application::getConfigParam('autoVersioning') as $extension => $staticFiles) {
 				$autoVersioning[$extension] = [];
 
 				foreach ($staticFiles as $file) {

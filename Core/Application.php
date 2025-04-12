@@ -2,69 +2,90 @@
 
 namespace Core;
 
-class Application
+final class Application
 {
-	private const CLASS_FORMAT	= 'Framework\\Controllers\\%sController';
-	private const ACTION_FORMAT	= 'action%s';
+	const CLASS_FORMAT				= 'Framework\\Controllers\\%sController';
+	const ACTION_FORMAT				= 'action%s';
 
-	public static array $config = [];
+	/** @var array $config App configuration */
+	private static array $config	= [];
 
-	private ?object $controller	= null;
-	private ?string $action		= null;
-	private array $params		= [];
+	/** @var object $controller Controller object */
+	private object $controller;
+	/** @var string $action Action method name */
+	private string $action;
+	/** @var array $params Method params */
+	private array $params			= [];
 
 	public function __construct(array $config)
 	{
 		self::$config = $config;
 	}
 
+	private function setController(string $controllerName): bool
+	{
+		if ($controllerName) {
+			$className = sprintf(self::CLASS_FORMAT, $controllerName);
+
+			if (class_exists($className)) {
+				$this->controller = new $className();
+
+				if ($className == get_class($this->controller)) {
+					return true;
+				} else {
+					unset($this->controller);
+				}
+			}
+		}
+
+		return false;
+	}
+
 	private function routing(): bool
 	{
-		$urlPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-
-		$replacementsCount = 0;
-		$filtered = preg_replace('/[^a-z0-9\/\-]/', '', strtolower($urlPath), -1, $replacementsCount);
-
-		if ($replacementsCount > 0) {
+		if (preg_match_all('/\/([\w\-]+)/', $_SERVER['REQUEST_URI'], $urlParts) === false) {
 			return false;
 		}
 
-		$parts = explode('/', substr($filtered, 1));
-		for ($i = 0; $i < count($parts); $i++) {
-			if ($this->controller === null || $this->action === null) {
-				$ccVal = str_replace('-', '', ucwords($parts[$i], '-'));
+		foreach ($urlParts[1] as $urlPart) {
+			if (!isset($this->action)) {
+				$urlPart = str_replace('-', '', ucwords($urlPart, '-'));
 
-				if ($this->controller === null) {
-					$className = sprintf(self::CLASS_FORMAT, $ccVal);
+				if (!isset($this->controller)) {
+					if ($this->setController($urlPart)) {
+						continue;
+					}
+				}
 
-					if (!$ccVal || !class_exists($className)) {
-						$className = sprintf(self::CLASS_FORMAT, self::$config['defaultController']);
-						$i--;
-					}
-
-					$this->controller = new $className();
-					if ($className != get_class($this->controller)) {
-						return false;
-					}
-				} else {
-					if ($ccVal) {
-						$this->action = sprintf(self::ACTION_FORMAT, $ccVal);
-					}
+				if ($urlPart) {
+					$this->action = sprintf(self::ACTION_FORMAT, $urlPart);
 				}
 			} else {
-				if ($parts[$i] || is_numeric($parts[$i])) {
-					$this->params[] = $parts[$i];
+				if ($urlPart || is_numeric($urlPart)) {
+					$this->params[] = $urlPart;
 				}
 			}
 		}
 
-		if ($this->controller && !$this->action) {
-			if ($this->controller->defaultAction) {
-				$this->action = sprintf(self::ACTION_FORMAT, $this->controller->defaultAction);
+		if (!isset($this->controller)) {
+			$defaultController = self::getConfigParam('defaultController');
+
+			if (!$this->setController($defaultController)) {
+				throw new \Exception('Default controller does not exist');
 			}
 		}
 
-		return true;
+		if ($this->controller instanceof \Core\Controller) {
+			if (!isset($this->action)) {
+				if ($this->controller->defaultAction) {
+					$this->action = sprintf(self::ACTION_FORMAT, $this->controller->defaultAction);
+				}
+			}
+
+			return true;
+		}
+
+		return false;
 	}
 
 	public function run(): void
@@ -73,14 +94,14 @@ class Application
 			self::error(404);
 		}
 
-		if ($this->controller && $this->action) {
+		if (isset($this->controller) && isset($this->action)) {
 			$func = [$this->controller, $this->action];
 			$args = [];
 
 			if (is_callable($func)) {
 				$methodInfo = new \ReflectionMethod($this->controller, $this->action);
 
-				if ($this->action === $methodInfo->getName()) {
+				if ($this->action == $methodInfo->getName()) {
 					if ($methodInfo->getNumberOfParameters() >= count($this->params)) {
 						$paramsValid = true;
 
@@ -95,22 +116,26 @@ class Application
 							}
 
 							$paramType = $methodParam->getType();
-							assert($paramType instanceof \ReflectionNamedType);
 
-							if (!settype($this->params[$idx], $paramType->getName())) {
+							if (
+								!($paramType instanceof \ReflectionNamedType)
+								|| !settype($this->params[$idx], $paramType->getName())
+							) {
 								$paramsValid = false;
 								break;
 							}
-							
+
 							$args[] = $this->params[$idx];
 						}
 
 						if ($paramsValid) {
-							$result = call_user_func_array($func, $args) ?? '';
+							$result = call_user_func_array($func, $args);
 
-							self::setServerTimingHeaders();
-							echo $result;
-							
+							if (is_string($result)) {
+								self::setServerTimingHeaders();
+								echo $result;
+							}
+
 							return;
 						}
 					}
@@ -120,8 +145,8 @@ class Application
 
 		self::error(404);
 	}
-	
-	public static function setServerTimingHeaders(): void
+
+	private static function setServerTimingHeaders(): void
 	{
 		$total = round((microtime(true) - $_SERVER['REQUEST_TIME_FLOAT']) * 1000, 1);
 
@@ -131,6 +156,15 @@ class Application
 		header('Server-Timing: db;dur=' . $db, false);
 		header('Server-Timing: app;dur=' . $app, false);
 		header('Server-Timing: total;dur=' . $total, false);
+	}
+
+	public static function getConfigParam(string $paramName)
+	{
+		if (isset(self::$config[$paramName])) {
+			return self::$config[$paramName];
+		}
+
+		throw new \Exception('Configuration parameter \'' . $paramName . '\' is not set in the file');
 	}
 
 	public static function isLocalhost(array $whitelist = ['127.0.0.1', '::1']): bool
