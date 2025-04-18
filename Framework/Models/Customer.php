@@ -4,14 +4,14 @@ namespace Framework\Models;
 
 class Customer extends \Core\Extensions\ActiveRecord
 {
-    /** @var string */
-    public $fullName;
+    /** @var string $fullName */
+    public string $fullName;
 
-    /** @var int */
-    public $age;
+    /** @var int $age */
+    public int $age;
 
-    /** @var string */
-    public $placeOfBirth;
+    /** @var string $placeOfBirth */
+    public string $placeOfBirth;
 
     public static function tableName()
     {

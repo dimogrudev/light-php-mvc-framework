@@ -25,7 +25,7 @@
 			<tbody>
 				<?php foreach ($customers as $customer) : ?>
 					<tr>
-						<th scope="row"><?= $customer->getId(); ?></th>
+						<th scope="row"><?= $customer->getPrimaryKey(); ?></th>
 						<td><?= $customer->fullName; ?></td>
 						<td><?= $customer->age; ?></td>
 						<td><?= $customer->placeOfBirth; ?></td>
