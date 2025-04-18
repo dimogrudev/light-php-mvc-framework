@@ -6,6 +6,13 @@ use Core\Modules\Database;
 
 final class Query
 {
+	/** @var 1 Inner join */
+	const JOIN_TYPE_INNER	= 1;
+	/** @var 2 Left join */
+	const JOIN_TYPE_LEFT	= 2;
+	/** @var 3 Right join */
+	const JOIN_TYPE_RIGHT	= 3;
+
 	/** @var string $sql */
 	private string $sql;
 	/** @var (int|string)[] $params */
@@ -43,11 +50,11 @@ final class Query
 		}
 	}
 
-	private function checkMethod(string $callingMethodName): void
+	private function checkMethod(string $callingMethodName, bool $allowMultiCall = false): void
 	{
 		if ($this->methods && isset($this->methods[$callingMethodName])) {
-			if ($this->methods[$callingMethodName]['called']) {
-				throw new \Exception('Method Core\Modules\Query::' . $callingMethodName . ' was already called');
+			if (!$allowMultiCall && $this->methods[$callingMethodName]['called']) {
+				throw new \Exception('Method Core\Extensions\Query::' . $callingMethodName . ' was already called');
 			}
 
 			foreach ($this->methods as $methodName => $methodParams) {
@@ -56,8 +63,8 @@ final class Query
 				}
 
 				if ($methodParams['required'] && !$methodParams['called']) {
-					throw new \Exception('Method Core\Modules\Query::' . $methodName . ' is missed '
-						. 'before calling Core\Modules\Query::' . $callingMethodName . '');
+					throw new \Exception('Method Core\Extensions\Query::' . $methodName . ' is missed '
+						. 'before calling Core\Extensions\Query::' . $callingMethodName . '');
 				}
 			}
 
@@ -118,6 +125,7 @@ final class Query
 			'SELECT ' . (is_array($expression) ? implode(', ', $expression) : $expression),
 			[
 				'from'		=> true,
+				'join'		=> false,
 				'where'		=> false,
 				'orderBy'	=> false,
 				'limit'		=> false
@@ -130,6 +138,24 @@ final class Query
 		$this->checkMethod('from');
 
 		$this->sql .= ' FROM ' . $tableName;
+		return $this;
+	}
+
+	public function join(int $joinType, string $tableName, string $condition): self
+	{
+		$this->checkMethod('join', true);
+		
+		if ($joinType == self::JOIN_TYPE_INNER) {
+			$this->sql .= ' INNER JOIN ';
+		} else if ($joinType == self::JOIN_TYPE_LEFT) {
+			$this->sql .= ' LEFT JOIN ';
+		} else if ($joinType == self::JOIN_TYPE_RIGHT) {
+			$this->sql .= ' RIGHT JOIN ';
+		}
+
+		$this->sql .= $tableName;
+		$this->sql .= ' ON ' . $condition;
+
 		return $this;
 	}
 
@@ -167,7 +193,7 @@ final class Query
 						}
 					}
 
-					$sqlConds[] = '(' . $sqlCond . ')';
+					$sqlConds[] = $sqlCond;
 				}
 
 				$this->sql .= implode(' AND ', $sqlConds);
@@ -274,6 +300,16 @@ final class Query
 		return $this;
 	}
 
+	public function getSql(): string
+	{
+		return $this->sql;
+	}
+
+	public function getParams(): array
+	{
+		return $this->params;
+	}
+
 	/**
 	 * @return \PDOStatement|null
 	 */
@@ -281,7 +317,7 @@ final class Query
 	{
 		foreach ($this->methods as $methodName => $methodParams) {
 			if ($methodParams['required'] && !$methodParams['called']) {
-				throw new \Exception('Method Core\Modules\Query::' . $methodName . ' is missed '
+				throw new \Exception('Method Core\Extensions\Query::' . $methodName . ' is missed '
 					. 'before getting SQL-statement');
 			}
 		}
