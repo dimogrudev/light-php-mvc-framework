@@ -1,6 +1,6 @@
 <?php
 
-namespace Framework\Controllers;
+namespace Framework\Controllers\Instances;
 
 use Framework\Models\Customer;
 
