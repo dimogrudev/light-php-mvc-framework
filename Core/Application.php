@@ -2,39 +2,73 @@
 
 namespace Core;
 
+use ReflectionClass;
+use ReflectionMethod;
+
 final class Application
 {
-	const CLASS_FORMAT				= 'Framework\\Controllers\\%sController';
-	const ACTION_FORMAT				= 'action%s';
+	const CONTROLLERS_DIR				= 'Framework/Controllers/Instances';
+
+	const CLASS_FORMAT					= '%sController';
+	const ACTION_FORMAT					= 'action%s';
 
 	/** @var array $config App configuration */
-	private static array $config	= [];
+	private static array $config		= [];
 
-	/** @var object $controller Controller object */
-	private object $controller;
-	/** @var string $action Action method name */
-	private string $action;
-	/** @var array $params Method params */
-	private array $params			= [];
+	/** @var string $subdir Controller subdirectory */
+	private string $subdir				= '';
+	/** @var ReflectionClass $controller Controller class information */
+	private ReflectionClass $controller;
+	/** @var ReflectionMethod $action Action method information */
+	private ReflectionMethod $action;
+	/** @var array $args Action method arguments */
+	private array $args					= [];
 
 	public function __construct(array $config)
 	{
 		self::$config = $config;
 	}
 
+	private function setSubdir(string $dirName): bool
+	{
+		if (file_exists(__DIR__ . '/../' . self::CONTROLLERS_DIR . '/' . $this->subdir . $dirName)) {
+			$this->subdir .= $dirName . '/';
+			return true;
+		}
+
+		return false;
+	}
+
 	private function setController(string $controllerName): bool
 	{
-		if ($controllerName) {
-			$className = sprintf(self::CLASS_FORMAT, $controllerName);
+		$className = str_replace('/', '\\', self::CONTROLLERS_DIR . '/' . $this->subdir)
+			. sprintf(self::CLASS_FORMAT, $controllerName);
 
-			if (class_exists($className)) {
-				$this->controller = new $className();
+		if (class_exists($className)) {
+			$classInfo = new ReflectionClass($className);
 
-				if ($className == get_class($this->controller)) {
-					return true;
-				} else {
-					unset($this->controller);
-				}
+			if (
+				$classInfo->getName() == $className
+				&& $classInfo->isSubclassOf(\Core\Controller::class)
+			) {
+				$this->controller = $classInfo;
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private function setAction(string $actionName): bool
+	{
+		$methodName = sprintf(self::ACTION_FORMAT, $actionName);
+
+		if ($this->controller->hasMethod($methodName)) {
+			$methodInfo = $this->controller->getMethod($methodName);
+
+			if ($methodInfo->getName() == $methodName) {
+				$this->action = $methodInfo;
+				return true;
 			}
 		}
 
@@ -47,27 +81,39 @@ final class Application
 			return false;
 		}
 
+		$actionName = null;
+
 		foreach ($urlParts[1] as $urlPart) {
-			if (!isset($this->action)) {
+			if (!$actionName) {
 				$urlPart = str_replace('-', '', ucwords($urlPart, '-'));
 
-				if (!isset($this->controller)) {
-					if ($this->setController($urlPart)) {
-						continue;
-					}
-				}
-
 				if ($urlPart) {
-					$this->action = sprintf(self::ACTION_FORMAT, $urlPart);
+					if (!isset($this->controller)) {
+						if ($this->setSubdir($urlPart)) {
+							continue;
+						}
+						if ($this->setController($urlPart)) {
+							continue;
+						}
+					}
+
+					$actionName = $urlPart;
+					continue;
+				} else {
+					return false;
 				}
-			} else {
-				if ($urlPart || is_numeric($urlPart)) {
-					$this->params[] = $urlPart;
-				}
+			}
+
+			if ($urlPart || is_numeric($urlPart)) {
+				$this->args[] = $urlPart;
 			}
 		}
 
 		if (!isset($this->controller)) {
+			if ($this->subdir) {
+				return false;
+			}
+
 			$defaultController = self::getConfigParam('defaultController');
 
 			if (!$this->setController($defaultController)) {
@@ -75,17 +121,15 @@ final class Application
 			}
 		}
 
-		if ($this->controller instanceof \Core\Controller) {
-			if (!isset($this->action)) {
-				if ($this->controller->defaultAction) {
-					$this->action = sprintf(self::ACTION_FORMAT, $this->controller->defaultAction);
-				}
-			}
+		if (!$actionName) {
+			$props = $this->controller->getDefaultProperties();
 
-			return true;
+			if (isset($props['defaultAction']) && $props['defaultAction']) {
+				$actionName = (string)$props['defaultAction'];
+			}
 		}
 
-		return false;
+		return $actionName && $this->setAction($actionName);
 	}
 
 	public function run(): void
@@ -94,52 +138,42 @@ final class Application
 			self::error(404);
 		}
 
-		if (isset($this->controller) && isset($this->action)) {
-			$func = [$this->controller, $this->action];
-			$args = [];
+		if ($this->action->getNumberOfParameters() >= count($this->args)) {
+			$methodArgs = [];
 
-			if (is_callable($func)) {
-				$methodInfo = new \ReflectionMethod($this->controller, $this->action);
-
-				if ($this->action == $methodInfo->getName()) {
-					if ($methodInfo->getNumberOfParameters() >= count($this->params)) {
-						$paramsValid = true;
-
-						foreach ($methodInfo->getParameters() as $idx => $methodParam) {
-							if (!isset($this->params[$idx])) {
-								if (!$methodParam->isDefaultValueAvailable()) {
-									$paramsValid = false;
-									break;
-								}
-
-								continue;
-							}
-
-							$paramType = $methodParam->getType();
-
-							if (
-								!($paramType instanceof \ReflectionNamedType)
-								|| !settype($this->params[$idx], $paramType->getName())
-							) {
-								$paramsValid = false;
-								break;
-							}
-
-							$args[] = $this->params[$idx];
-						}
-
-						if ($paramsValid) {
-							$result = call_user_func_array($func, $args);
-
-							if (is_string($result)) {
-								self::setServerTimingHeaders();
-								echo $result;
-							}
-
-							return;
-						}
+			foreach ($this->action->getParameters() as $idx => $methodParam) {
+				if (!isset($this->args[$idx])) {
+					if (!$methodParam->isDefaultValueAvailable()) {
+						$methodArgs = null;
+						break;
 					}
+
+					continue;
 				}
+
+				$paramType = $methodParam->getType();
+
+				if (
+					!($paramType instanceof \ReflectionNamedType)
+					|| !settype($this->args[$idx], $paramType->getName())
+				) {
+					$methodArgs = null;
+					break;
+				}
+
+				$methodArgs[] = $this->args[$idx];
+			}
+
+			if (is_array($methodArgs)) {
+				$controllerInstance = $this->controller->newInstance();
+				$result = $this->action->invokeArgs($controllerInstance, $methodArgs);
+
+				if (is_string($result)) {
+					self::setServerTimingHeaders();
+					echo $result;
+				}
+
+				return;
 			}
 		}
 
