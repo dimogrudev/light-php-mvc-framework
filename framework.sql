@@ -31,16 +31,16 @@ USE `framework`;
 
 CREATE TABLE `customers` (
   `id` int(11) NOT NULL,
-  `full_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `fullName` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `age` int(11) NOT NULL,
-  `place_of_birth` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL
+  `placeOfBirth` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `customers`
 --
 
-INSERT INTO `customers` (`id`, `full_name`, `age`, `place_of_birth`) VALUES
+INSERT INTO `customers` (`id`, `fullName`, `age`, `placeOfBirth`) VALUES
 (1, 'John Doe', 30, 'New York, NY'),
 (2, 'Jane Doe', 25, 'Dallas, TX');
 
